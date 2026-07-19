@@ -403,6 +403,32 @@ if st.session_state.active_names: filtered_df = filtered_df[filtered_df["Name"].
 if st.session_state.active_years: filtered_df = filtered_df[filtered_df["Date"].dt.year.astype(str).isin(st.session_state.active_years)]
 if st.session_state.active_months: filtered_df = filtered_df[filtered_df["Date"].dt.strftime("%B").isin(st.session_state.active_months)]
 
+st.markdown("---")
+
+# --- NEW: EXPENSE CATEGORY SUMMARY TABLE OVERVIEW ---
+st.subheader("📋 Expense Category Ledger Metrics Summary")
+if not filtered_df.empty:
+    summary_cat_df = filtered_df.groupby("Expense Category").agg(
+        Total_Allocated_Inflow=("Imprest Received (₹)", "sum"),
+        Total_Amount_Spent=("Amount Spent (₹)", "sum")
+    ).reset_index()
+    
+    summary_cat_df["Net Sub-Balance (₹)"] = summary_cat_df["Total_Allocated_Inflow"] - summary_cat_df["Total_Amount_Spent"]
+    
+    # Clean Column Formatting for Premium Readability
+    st.dataframe(
+        summary_cat_df.style.format({
+            "Total_Allocated_Inflow": "₹{:,.2f}",
+            "Total_Amount_Spent": "₹{:,.2f}",
+            "Net Sub-Balance (₹)": "₹{:,.2f}"
+        }),
+        use_container_width=True
+    )
+else:
+    st.info("No active records matched for categories in selected scope scope.")
+
+st.markdown("---")
+
 # --- GLOWING NEON PLOTLY THEME CONFIG ---
 neon_layout = dict(
     plot_bgcolor='#0a0c10',   
@@ -452,7 +478,7 @@ with g_col2:
     fig2.update_layout(title="⚡ Inflow vs Outflow Structural Matrix", barmode='relative', **neon_layout)
     st.plotly_chart(fig2, use_container_width=True)
 
-# ROW 2: NEW LEDGER CATEGORY ANALYTICS
+# ROW 2: LEDGER CATEGORY ANALYTICS
 st.write("")
 g_col3, g_col4 = st.columns(2)
 
