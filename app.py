@@ -405,7 +405,7 @@ if st.session_state.active_months: filtered_df = filtered_df[filtered_df["Date"]
 
 st.markdown("---")
 
-# --- NEW: EXPENSE CATEGORY SUMMARY TABLE OVERVIEW ---
+# --- EXPENSE CATEGORY SUMMARY TABLE OVERVIEW ---
 st.subheader("📋 Expense Category Ledger Metrics Summary")
 if not filtered_df.empty:
     summary_cat_df = filtered_df.groupby("Expense Category").agg(
@@ -413,19 +413,27 @@ if not filtered_df.empty:
         Total_Amount_Spent=("Amount Spent (₹)", "sum")
     ).reset_index()
     
-    summary_cat_df["Net Sub-Balance (₹)"] = summary_cat_df["Total_Allocated_Inflow"] - summary_cat_df["Total_Amount_Spent"]
-    
-    # Clean Column Formatting for Premium Readability
+    # Render table directly with required columns
     st.dataframe(
         summary_cat_df.style.format({
             "Total_Allocated_Inflow": "₹{:,.2f}",
-            "Total_Amount_Spent": "₹{:,.2f}",
-            "Net Sub-Balance (₹)": "₹{:,.2f}"
+            "Total_Amount_Spent": "₹{:,.2f}"
         }),
         use_container_width=True
     )
+    
+    # Dynamic bottom calculations for the scope
+    total_inflow_calc = float(summary_cat_df["Total_Allocated_Inflow"].sum())
+    total_outflow_calc = float(summary_cat_df["Total_Amount_Spent"].sum())
+    
+    # Display calculated totals in a clean column structural structure below table
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        st.metric(label="📊 Scope Category Total Inflow", value=f"₹{total_inflow_calc:,.2f}")
+    with col_t2:
+        st.metric(label="📉 Scope Category Total Outflow", value=f"₹{total_outflow_calc:,.2f}")
 else:
-    st.info("No active records matched for categories in selected scope scope.")
+    st.info("No active records matched for categories in selected scope.")
 
 st.markdown("---")
 
