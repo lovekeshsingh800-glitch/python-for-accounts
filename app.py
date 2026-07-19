@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import datetime
 import os
+import plotly.graph_objects as go
+
 
 # Premium Page Title Config
 st.set_page_config(page_title="Imprest Management System", layout="wide")
@@ -395,3 +397,65 @@ if not edited_df.equals(display_df):
         st.session_state.running_master_df = load_data_from_excel_live()
         st.toast("Excel database updated directly from layout grid.")
         st.rerun()
+# --- DATA PROCESSOR FOR ANALYTICS ---
+master_working_df = st.session_state.running_master_df.copy()
+master_working_df["Date"] = pd.to_datetime(master_working_df["Date"])
+master_working_df = master_working_df.sort_values(by="Date").reset_index(drop=True)
+master_working_df["_source_index"] = master_working_df.index
+
+filtered_df = master_working_df.copy()
+if st.session_state.active_names: filtered_df = filtered_df[filtered_df["Name"].isin(st.session_state.active_names)]
+if st.session_state.active_years: filtered_df = filtered_df[filtered_df["Date"].dt.year.astype(str).isin(st.session_state.active_years)]
+if st.session_state.active_months: filtered_df = filtered_df[filtered_df["Date"].dt.strftime("%B").isin(st.session_state.active_months)]
+
+# --- GLOWING NEON PLOTLY THEME CONFIG ---
+neon_layout = dict(
+    plot_bgcolor='#0a0c10',   # Deep dark obsidian background
+    paper_bgcolor='#0a0c10',  # Seamless integration with UI
+    font=dict(color='#8bc34a' if False else '#e0e6ed', family="Courier New, monospace", size=11),
+    margin=dict(l=50, r=30, t=40, b=40),
+    showlegend=True,
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
+    xaxis=dict(showgrid=True, gridcolor='#1a1f2c', gridwidth=1, zeroline=False, linecolor='#2d3748'),
+    yaxis=dict(showgrid=True, gridcolor='#1a1f2c', gridwidth=1, zeroline=True, zerolinecolor='#2d3748', linecolor='#2d3748')
+)
+
+st.subheader("📊 Premium Visual Analytics Insights")
+g_col1, g_col2 = st.columns(2)
+
+with g_col1:
+    # 1. Neon Glass Area Chart (Top Left Look)
+    fig1 = go.Figure()
+    if not filtered_df.empty:
+        daily_spent = filtered_df.groupby("Date")["Amount Spent (₹)"].sum().reset_index()
+        # Adding gradient area look using opacity
+        fig1.add_trace(go.Scatter(
+            x=daily_spent["Date"], y=daily_spent["Amount Spent (₹)"],
+            fill='tozeroy', mode='lines+markers',
+            line=dict(color='#00ffff', width=2.5, shape='linear'), # Cyan neon line
+            fillcolor='rgba(0, 255, 255, 0.12)', # Soft glow fill
+            marker=dict(size=6, color='#00ffff', symbol='circle'),
+            name='Expense Flow'
+        ))
+    fig1.update_layout(title="✨ Daily Expense Flow Timeline", **neon_layout)
+    st.plotly_chart(fig1, use_container_width=True)
+
+with g_col2:
+    # 2. Bi-directional Stacked Bar Chart (Top Right Look)
+    fig2 = go.Figure()
+    if not filtered_df.empty:
+        user_funds = filtered_df.groupby("Name")[["Imprest Received (₹)", "Amount Spent (₹)"]].sum().reset_index()
+        # Positive Blue Bars
+        fig2.add_trace(go.Bar(
+            x=user_funds["Name"], y=user_funds["Imprest Received (₹)"],
+            name="Funds Inflow", marker_color='#38bdf8',
+            marker_line=dict(color='#00d2ff', width=1)
+        ))
+        # Negative Crimson/Pink Bars going downward
+        fig2.add_trace(go.Bar(
+            x=user_funds["Name"], y=-user_funds["Amount Spent (₹)"],
+            name="Funds Outflow", marker_color='#f43f5e',
+            marker_line=dict(color='#ff4a73', width=1)
+        ))
+    fig2.update_layout(title="⚡ Inflow vs Outflow Structural Matrix", barmode='relative', **neon_layout)
+    st.plotly_chart(fig2, use_container_width=True)
