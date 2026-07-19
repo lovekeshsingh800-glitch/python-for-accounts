@@ -14,12 +14,10 @@ EXCEL_FILE = "imprest_database.xlsx"
 
 # --- LIVE EXCEL DIRECT READ/WRITE LOGIC WITH PERMISSION ERROR CAPTURE ---
 def load_data_from_excel_live():
-    # Dynamic setup: Fallback ko khali rakha taaki purana hata hua naam wapas na aaye
     default_names = []
     default_cats = ["Office Supplies", "Local Travel", "Refreshments", "Internet Bill", "Repairs"]
-    
+
     if not os.path.exists(EXCEL_FILE):
-        # Pehli baar file bante waqt starting user 'mohan' ya koi aur rakh sakte hain
         default_df = pd.DataFrame({
             "Date": [datetime.date(2026, 7, 1), datetime.date(2026, 7, 2)],
             "Name": ["mohan", "mohan"],
@@ -37,7 +35,7 @@ def load_data_from_excel_live():
         except PermissionError:
             st.error("⚠️ **Active Excel File Lock:** System file 'imprest_database.xlsx' abhi background mein khuli hui hai. **Please close the excel file** and refresh this page.")
             st.stop()
-        
+
         st.session_state.allowed_names = ["mohan"]
         st.session_state.allowed_categories = default_cats
         return default_df
@@ -48,13 +46,11 @@ def load_data_from_excel_live():
                 df = pd.read_excel(EXCEL_FILE, sheet_name="Transactions")
             else:
                 df = pd.read_excel(EXCEL_FILE)
-                
             try:
                 if "Master_Names" in xl.sheet_names:
                     df_names = pd.read_excel(EXCEL_FILE, sheet_name="Master_Names")
                     saved_names = df_names["Allowed_Names"].dropna().astype(str).tolist()
                 else:
-                    # Agar purani sheet hai toh sirf transaction table me maujood active names load honge
                     saved_names = sorted(list(set(df["Name"].dropna().astype(str).tolist()))) if not df.empty else ["mohan"]
             except Exception:
                 saved_names = ["mohan"]
@@ -67,11 +63,11 @@ def load_data_from_excel_live():
                     saved_categories = sorted(list(set(default_cats + df["Expense Category"].dropna().astype(str).tolist()))) if not df.empty else default_cats
             except Exception:
                 saved_categories = default_cats
-                
+
         except PermissionError:
             st.error("⚠️ **Active Excel File Lock:** System file 'imprest_database.xlsx' abhi background mein khuli hui hai. **Please close the excel file** and refresh this page.")
             st.stop()
-            
+
         if "allowed_names" not in st.session_state:
             st.session_state.allowed_names = sorted(list(set(saved_names)))
         if "allowed_categories" not in st.session_state:
@@ -88,14 +84,14 @@ def save_data_to_excel_live(df_to_write):
     df_copy = df_to_write.copy()
     if "_source_index" in df_copy.columns:
         df_copy = df_copy.drop(columns=["_source_index"])
-        
+
     if not df_copy.empty:
         df_copy["Date"] = pd.to_datetime(df_copy["Date"]).dt.date
         df_copy = df_copy.sort_values(by="Date").reset_index(drop=True)
         df_copy["Date"] = df_copy["Date"].astype(str)
         df_copy["Imprest Received (₹)"] = df_copy["Imprest Received (₹)"].apply(lambda x: float(x))
         df_copy["Amount Spent (₹)"] = df_copy["Amount Spent (₹)"].apply(lambda x: float(x))
-    
+
     try:
         with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
             df_copy.to_excel(writer, sheet_name="Transactions", index=False)
@@ -110,7 +106,6 @@ if "running_master_df" not in st.session_state:
     st.session_state.running_master_df = load_data_from_excel_live()
 else:
     load_data_from_excel_live()
-
 # --- OPTION MANAGEMENT SECTION ---
 st.subheader("Master Settings & Dropdown Controls")
 setup_col1, setup_col2 = st.columns(2)
@@ -125,12 +120,12 @@ with setup_col1:
                 save_data_to_excel_live(st.session_state.running_master_df)
                 st.success(f"'{new_custom_name}' registered successfully.")
                 st.rerun()
-        
+
         st.markdown("---")
         st.write("**Modify or Remove Name**")
         name_to_manage = st.selectbox("Select Target Name:", st.session_state.allowed_names)
         edit_name_input = st.text_input("Type new text to rename:").strip()
-        
+
         btn_col1, btn_col2 = st.columns(2)
         with btn_col1:
             if st.button("Rename Name"):
@@ -156,7 +151,7 @@ with setup_col1:
 
 with setup_col2:
     with st.popover("Manage Expense Categories"):
-        st.write("**Add New `Ledger Cate`gory**")
+        st.write("**Add New Ledger Category**")
         new_custom_cat = st.text_input("Enter Category Type:").strip()
         if st.button("Register Category"):
             if new_custom_cat and new_custom_cat not in st.session_state.allowed_categories:
@@ -172,6 +167,7 @@ if "active_months" not in st.session_state:
     st.session_state.active_months = []
 if "active_names" not in st.session_state:
     st.session_state.active_names = []
+
 # --- PREMIUM USER-WISE IMPREST SUMMARY PANEL ---
 disp_y_str = ", ".join(st.session_state.active_years) if st.session_state.active_years else "All Years"
 disp_m_str = ", ".join(st.session_state.active_months) if st.session_state.active_months else "All Months"
@@ -191,13 +187,13 @@ if target_users_cards and not calc_df_master.empty:
         with cols_metrics[i]:
             user_full_log = calc_df_master[calc_df_master["Name"] == name_user].sort_values(by="Date")
             u_opening, u_received_this_scope, u_spent_this_scope = 0.0, 0.0, 0.0
-            
+
             scope_df = user_full_log.copy()
             if st.session_state.active_years:
                 scope_df = scope_df[scope_df["Date"].dt.year.astype(str).isin(st.session_state.active_years)]
             if st.session_state.active_months:
                 scope_df = scope_df[scope_df["Date"].dt.strftime("%B").isin(st.session_state.active_months)]
-                
+
             if not scope_df.empty and (st.session_state.active_years or st.session_state.active_months):
                 min_scope_date = scope_df["Date"].min()
                 historical_logs = user_full_log[user_full_log["Date"] < min_scope_date]
@@ -207,9 +203,9 @@ if target_users_cards and not calc_df_master.empty:
             else:
                 u_received_this_scope = float(user_full_log["Imprest Received (₹)"].sum())
                 u_spent_this_scope = float(user_full_log["Amount Spent (₹)"].sum())
-                
+
             u_final_closing = u_opening + u_received_this_scope - u_spent_this_scope
-            
+
             with st.container(border=True):
                 st.write(f"### User: {name_user}")
                 l_col, r_col = st.columns(2)
@@ -221,13 +217,12 @@ if target_users_cards and not calc_df_master.empty:
                     st.write(f"**₹{u_opening:,.2f}**")
                     st.write(f"**₹{u_received_this_scope:,.2f}**")
                     st.write(f"**₹{u_spent_this_scope:,.2f}**")
-                
+
                 st.write("") 
                 if u_final_closing >= 0:
                     st.success(f"Net Balance: ₹{u_final_closing:,.2f}")
                 else:
                     st.error(f"Overdrawn: ₹{u_final_closing:,.2f}")
-
 st.markdown("---")
 
 # --- LIVE SUBMISSION INPUT FORM ---
@@ -243,7 +238,7 @@ with st.expander("Record New Transaction / Voucher Entry", expanded=False):
     with col_input3:
         chosen_desc = st.text_input("Voucher Description:", value="Operational Expense", key="exp_insert_desc")
         raw_chosen_spent = st.number_input("Expense Amount (₹)", step=100.0, value=0.0, key="exp_insert_spent")
-        
+
     if st.button("Submit Voucher to Excel", use_container_width=True, key="exp_insert_btn"):
         new_entry = {
             "Date": chosen_date, "Name": chosen_name, "Imprest Received (₹)": float(raw_allocated_amt),
@@ -264,7 +259,7 @@ st.session_state.disp_months_str = ", ".join(st.session_state.active_months) if 
 with st.sidebar.form(key="filter_form"):
     st.header("Scope Filter Controls")
     df_filter_core = st.session_state.running_master_df.copy()
-    
+
     if not df_filter_core.empty:
         df_filter_core["Date"] = pd.to_datetime(df_filter_core["Date"])
         all_years = sorted(df_filter_core["Date"].dt.year.dropna().unique().tolist())
@@ -272,11 +267,11 @@ with st.sidebar.form(key="filter_form"):
     else:
         all_years = [datetime.date.today().year]
         all_months = []
-    
+
     selected_years = st.multiselect("Select Target Years:", options=[str(y) for y in all_years], default=st.session_state.active_years)
     selected_months = st.multiselect("Select Target Months:", options=all_months, default=st.session_state.active_months)
     selected_names = st.multiselect("Select Target Accounts:", options=st.session_state.allowed_names, default=st.session_state.active_names)
-    
+
     submit_filters = st.form_submit_button(label="Apply Scope Selections", use_container_width=True)
 
 if submit_filters:
@@ -331,7 +326,6 @@ with col_m4:
     st.metric(label="Scope Closing Balance", value=f"₹{closing_balance:,.2f}")
 
 st.markdown("---")
-
 # --- INTERACTIVE DATA TABLE ---
 st.subheader("Auditable Transaction Log Statement")
 column_config = {
@@ -356,23 +350,23 @@ if not edited_df.equals(display_df):
     updated_master = st.session_state.running_master_df.copy()
     if not updated_master.empty:
         updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
-        
+
     original_source_ids = set(display_df["_source_index"].dropna().astype(int).tolist())
     current_source_ids = set(edited_df["_source_index"].dropna().astype(int).tolist())
     deleted_ids = original_source_ids - current_source_ids
-    
+
     if deleted_ids:
         updated_master = updated_master.drop(list(deleted_ids)).reset_index(drop=True)
-        
+
     for idx in edited_df.index:
         row_data = edited_df.loc[idx].to_dict()
         source_id = row_data.get("_source_index")
-        
+
         if pd.isna(row_data["Date"]) or row_data["Date"] is None:
             row_data["Date"] = datetime.date.today()
         else:
             row_data["Date"] = pd.to_datetime(row_data["Date"]).date()
-            
+
         clean_row = {
             "Date": row_data["Date"], 
             "Name": row_data["Name"], 
@@ -381,22 +375,23 @@ if not edited_df.equals(display_df):
             "Description": row_data["Description"] if pd.notna(row_data["Description"]) else "", 
             "Amount Spent (₹)": float(row_data["Amount Spent (₹)"]) if pd.notna(row_data["Amount Spent (₹)"]) else 0.0
         }
-        
+
         if pd.notna(source_id) and int(source_id) in updated_master.index:
             for col in clean_row: 
                 updated_master.at[int(source_id), col] = clean_row[col]
         else:
             if pd.notna(clean_row["Name"]) and pd.notna(clean_row["Expense Category"]):
                 updated_master = pd.concat([updated_master, pd.DataFrame([clean_row])], ignore_index=True)
-            
+
     if not updated_master.empty:
         updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
         updated_master = updated_master.sort_values(by="Date").reset_index(drop=True)
-        
+
     if save_data_to_excel_live(updated_master):
         st.session_state.running_master_df = load_data_from_excel_live()
         st.toast("Excel database updated directly from layout grid.")
         st.rerun()
+
 # --- DATA PROCESSOR FOR ANALYTICS ---
 master_working_df = st.session_state.running_master_df.copy()
 master_working_df["Date"] = pd.to_datetime(master_working_df["Date"])
@@ -410,9 +405,9 @@ if st.session_state.active_months: filtered_df = filtered_df[filtered_df["Date"]
 
 # --- GLOWING NEON PLOTLY THEME CONFIG ---
 neon_layout = dict(
-    plot_bgcolor='#0a0c10',   # Deep dark obsidian background
-    paper_bgcolor='#0a0c10',  # Seamless integration with UI
-    font=dict(color='#8bc34a' if False else '#e0e6ed', family="Courier New, monospace", size=11),
+    plot_bgcolor='#0a0c10',   
+    paper_bgcolor='#0a0c10',  
+    font=dict(color='#e0e6ed', family="Courier New, monospace", size=11),
     margin=dict(l=50, r=30, t=40, b=40),
     showlegend=True,
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
@@ -421,19 +416,19 @@ neon_layout = dict(
 )
 
 st.subheader("📊 Premium Visual Analytics Insights")
+
+# ROW 1: USER ANALYTICS
 g_col1, g_col2 = st.columns(2)
 
 with g_col1:
-    # 1. Neon Glass Area Chart (Top Left Look)
     fig1 = go.Figure()
     if not filtered_df.empty:
         daily_spent = filtered_df.groupby("Date")["Amount Spent (₹)"].sum().reset_index()
-        # Adding gradient area look using opacity
         fig1.add_trace(go.Scatter(
             x=daily_spent["Date"], y=daily_spent["Amount Spent (₹)"],
             fill='tozeroy', mode='lines+markers',
-            line=dict(color='#00ffff', width=2.5, shape='linear'), # Cyan neon line
-            fillcolor='rgba(0, 255, 255, 0.12)', # Soft glow fill
+            line=dict(color='#00ffff', width=2.5, shape='linear'), 
+            fillcolor='rgba(0, 255, 255, 0.12)', 
             marker=dict(size=6, color='#00ffff', symbol='circle'),
             name='Expense Flow'
         ))
@@ -441,17 +436,14 @@ with g_col1:
     st.plotly_chart(fig1, use_container_width=True)
 
 with g_col2:
-    # 2. Bi-directional Stacked Bar Chart (Top Right Look)
     fig2 = go.Figure()
     if not filtered_df.empty:
         user_funds = filtered_df.groupby("Name")[["Imprest Received (₹)", "Amount Spent (₹)"]].sum().reset_index()
-        # Positive Blue Bars
         fig2.add_trace(go.Bar(
             x=user_funds["Name"], y=user_funds["Imprest Received (₹)"],
             name="Funds Inflow", marker_color='#38bdf8',
             marker_line=dict(color='#00d2ff', width=1)
         ))
-        # Negative Crimson/Pink Bars going downward
         fig2.add_trace(go.Bar(
             x=user_funds["Name"], y=-user_funds["Amount Spent (₹)"],
             name="Funds Outflow", marker_color='#f43f5e',
@@ -459,3 +451,42 @@ with g_col2:
         ))
     fig2.update_layout(title="⚡ Inflow vs Outflow Structural Matrix", barmode='relative', **neon_layout)
     st.plotly_chart(fig2, use_container_width=True)
+
+# ROW 2: NEW LEDGER CATEGORY ANALYTICS
+st.write("")
+g_col3, g_col4 = st.columns(2)
+
+with g_col3:
+    fig3 = go.Figure()
+    if not filtered_df.empty:
+        cat_spent = filtered_df.groupby("Expense Category")["Amount Spent (₹)"].sum().reset_index()
+        cat_spent = cat_spent[cat_spent["Amount Spent (₹)"] > 0]
+        
+        fig3.add_trace(go.Pie(
+            labels=cat_spent["Expense Category"], 
+            values=cat_spent["Amount Spent (₹)"],
+            hole=0.4,
+            hoverinfo="label+percent+value",
+            textinfo="label+percent",
+            marker=dict(colors=['#00ffff', '#a855f7', '#38bdf8', '#f43f5e', '#eab308', '#10b981'])
+        ))
+    fig3.update_layout(title="🔮 Ledger Category Expense Distribution", **neon_layout)
+    st.plotly_chart(fig3, use_container_width=True)
+
+with g_col4:
+    fig4 = go.Figure()
+    if not filtered_df.empty:
+        cat_funds = filtered_df.groupby("Expense Category")[["Imprest Received (₹)", "Amount Spent (₹)"]].sum().reset_index()
+        
+        fig4.add_trace(go.Bar(
+            x=cat_funds["Expense Category"], y=cat_funds["Imprest Received (₹)"],
+            name="Imprest Inflow", marker_color='#a855f7',
+            marker_line=dict(color='#c084fc', width=1)
+        ))
+        fig4.add_trace(go.Bar(
+            x=cat_funds["Expense Category"], y=cat_funds["Amount Spent (₹)"],
+            name="Expenses Outflow", marker_color='#eab308',
+            marker_line=dict(color='#fde047', width=1)
+        ))
+    fig4.update_layout(title="🎯 Category-wise Inflow & Outflow Dynamics", barmode='group', **neon_layout)
+    st.plotly_chart(fig4, use_container_width=True)
