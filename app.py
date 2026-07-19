@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import datetime
 import os
+import io
 import plotly.graph_objects as go
-
 
 # Premium Page Title Config
 st.set_page_config(page_title="Imprest Management System", layout="wide")
@@ -79,7 +79,6 @@ def load_data_from_excel_live():
             return df
         else:
             return pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)"])
-
 def save_data_to_excel_live(df_to_write):
     df_copy = df_to_write.copy()
     if "_source_index" in df_copy.columns:
@@ -106,6 +105,7 @@ if "running_master_df" not in st.session_state:
     st.session_state.running_master_df = load_data_from_excel_live()
 else:
     load_data_from_excel_live()
+
 # --- OPTION MANAGEMENT SECTION ---
 st.subheader("Master Settings & Dropdown Controls")
 setup_col1, setup_col2 = st.columns(2)
@@ -161,6 +161,101 @@ with setup_col2:
                 st.rerun()
 
 st.markdown("---")
+
+# --- NEW FEATURE: EXPORT & IMPORT TEMPLATE SECTION ---
+st.subheader("📥 Bulk Data Operations (Template Export / Import)")
+io_col1, io_col2 = st.columns(2)
+
+with io_col1:
+    with st.container(border=True):
+        st.write("**Step 1: Download Empty Data Template**")
+        st.caption("Excel file download karke usme data fill karein. Columns ka naam change na karein.")
+        
+        template_cols = ["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)"]
+        template_df = pd.DataFrame(columns=template_cols)
+        
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            template_df.to_excel(writer, index=False, sheet_name="Template")
+        buffer.seek(0)
+        
+        st.download_button(
+            label="⬇️ Export Excel Template",
+            data=buffer,
+            file_name="imprest_import_template.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+with io_col2:
+    with st.container(border=True):
+        st.write("**Step 2: Upload Filled Template**")
+        uploaded_file = st.file_uploader("Choose Excel File", type=["xlsx"], label_visibility="collapsed")
+        
+        if uploaded_file is not None:
+            try:
+                imported_df = pd.read_excel(uploaded_file)
+                
+                required_cols = ["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)"]
+                if all(col in imported_df.columns for col in required_cols):
+                    
+                    imported_df["Date"] = pd.to_datetime(imported_df["Date"]).dt.date
+                    imported_df["Imprest Received (₹)"] = pd.to_numeric(imported_df["Imprest Received (₹)"]).fillna(0.0)
+                    imported_df["Amount Spent (₹)"] = pd.to_numeric(imported_df["Amount Spent (₹)"]).fillna(0.0)
+                    imported_df["Name"] = imported_df["Name"].astype(str).str.strip()
+                    imported_df["Expense Category"] = imported_df["Expense Category"].astype(str).str.strip()
+                    imported_df["Description"] = imported_df["Description"].fillna("").astype(str).str.strip()
+                    
+                    if st.button("🚀 Process & Merge Import Entries", use_container_width=True):
+                        current_db = st.session_state.running_master_df.copy()
+                        current_db["Date"] = pd.to_datetime(current_db["Date"]).dt.date
+                        
+                        # --- SAFE MULTI-INDEX MERGE HANDLING ---
+                        match_keys = ["Date", "Name", "Expense Category", "Description"]
+                        
+                        # Step A: Dono dataframes se duplicate key rows ko strictly combine/sum up ya remove karna taaki index unique ho sake
+                        current_db_unique = current_db.groupby(match_keys, as_index=False).agg({
+                            "Imprest Received (₹)": "sum",
+                            "Amount Spent (₹)": "sum"
+                        })
+                        
+                        imported_df_unique = imported_df.groupby(match_keys, as_index=False).agg({
+                            "Imprest Received (₹)": "sum",
+                            "Amount Spent (₹)": "sum"
+                        })
+                        
+                        # Step B: Index lagakar safe modification update chalana
+                        current_db_unique.set_index(match_keys, inplace=True)
+                        imported_df_unique.set_index(match_keys, inplace=True)
+                        
+                        # Jo data matches milega use update kar dega
+                        current_db_unique.update(imported_df_unique)
+                        
+                        # Jo unmatched rows hain (brand new), unhe track karna
+                        new_entries = imported_df_unique[~imported_df_unique.index.isin(current_db_unique.index)]
+                        
+                        # Merge back into single dataframe
+                        final_merged_df = pd.concat([current_db_unique, new_entries]).reset_index()
+                        
+                        # Dropdowns controls updates
+                        for imported_name in final_merged_df["Name"].unique():
+                            if imported_name and imported_name not in st.session_state.allowed_names:
+                                st.session_state.allowed_names.append(imported_name)
+                                
+                        for imported_cat in final_merged_df["Expense Category"].unique():
+                            if imported_cat and imported_cat not in st.session_state.allowed_categories:
+                                st.session_state.allowed_categories.append(imported_cat)
+                        
+                        if save_data_to_excel_live(final_merged_df):
+                            st.session_state.running_master_df = load_data_from_excel_live()
+                            st.success(f"✅ Database cleaned and processed successfully! Duplicates aggregated and logs updated.")
+                            st.rerun()
+                else:
+                    st.error("⚠️ File columns framework format match nahi ho raha. Kripya system generated template use karein.")
+            except Exception as e:
+                st.error(f"Error reading file: {str(e)}")
+
+st.markdown("---")
+
 if "active_years" not in st.session_state:
     st.session_state.active_years = []
 if "active_months" not in st.session_state:
@@ -391,7 +486,6 @@ if not edited_df.equals(display_df):
         st.session_state.running_master_df = load_data_from_excel_live()
         st.toast("Excel database updated directly from layout grid.")
         st.rerun()
-
 # --- DATA PROCESSOR FOR ANALYTICS ---
 master_working_df = st.session_state.running_master_df.copy()
 master_working_df["Date"] = pd.to_datetime(master_working_df["Date"])
@@ -413,7 +507,6 @@ if not filtered_df.empty:
         Total_Amount_Spent=("Amount Spent (₹)", "sum")
     ).reset_index()
     
-    # Render table directly with required columns
     st.dataframe(
         summary_cat_df.style.format({
             "Total_Allocated_Inflow": "₹{:,.2f}",
@@ -422,11 +515,9 @@ if not filtered_df.empty:
         use_container_width=True
     )
     
-    # Dynamic bottom calculations for the scope
     total_inflow_calc = float(summary_cat_df["Total_Allocated_Inflow"].sum())
     total_outflow_calc = float(summary_cat_df["Total_Amount_Spent"].sum())
     
-    # Display calculated totals in a clean column structural structure below table
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         st.metric(label="📊 Scope Category Total Inflow", value=f"₹{total_inflow_calc:,.2f}")
@@ -497,7 +588,7 @@ with g_col3:
         cat_spent = cat_spent[cat_spent["Amount Spent (₹)"] > 0]
         
         fig3.add_trace(go.Pie(
-            labels=cat_spent["Expense Category"], 
+            labels=cat_spent["Expense Category"],
             values=cat_spent["Amount Spent (₹)"],
             hole=0.4,
             hoverinfo="label+percent+value",
