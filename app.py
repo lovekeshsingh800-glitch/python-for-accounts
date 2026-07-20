@@ -92,7 +92,7 @@ def load_data_from_excel_live():
                 pd.DataFrame({"Allowed_Names": ["mohan"]}).to_excel(writer, sheet_name="Master_Names", index=False)
                 pd.DataFrame({"Allowed_Categories": default_cats}).to_excel(writer, sheet_name="Master_Categories", index=False)
         except PermissionError:
-            st.error("⚠️ **Active Excel File Lock:** System file 'imprest_database.xlsx' abhi background mein khuli hui hai. **Please close the excel file** and refresh this page.")
+            st.error("⚠️ **Active Excel File Lock:** System file 'imprest_database.xlsx' abhi background mein khuli hui hai. Please close the excel file and refresh this page.")
             st.stop()
 
         st.session_state.allowed_names = ["mohan"]
@@ -124,7 +124,7 @@ def load_data_from_excel_live():
                 saved_categories = default_cats
 
         except PermissionError:
-            st.error("⚠️ **Active Excel File Lock:** System file 'imprest_database.xlsx' abhi background mein khuli hui hai. **Please close the excel file** and refresh this page.")
+            st.error("⚠️ **Active Excel File Lock:** System file 'imprest_database.xlsx' abhi background mein khuli hui hai. Please close the excel file and refresh this page.")
             st.stop()
 
         if "allowed_names" not in st.session_state:
@@ -157,7 +157,7 @@ def save_data_to_excel_live(df_to_write):
             pd.DataFrame({"Allowed_Categories": st.session_state.allowed_categories}).to_excel(writer, sheet_name="Master_Categories", index=False)
         return True
     except PermissionError:
-        st.error("⚠️ **Active Excel File Lock:** Streamlit data save nahi kar paa raha kyunki 'imprest_database.xlsx' Microsoft Excel mein open hai. **Please close the excel file** and try again.")
+        st.error("⚠️ **Active Excel File Lock:** Streamlit data save nahi kar paa raha kyunki 'imprest_database.xlsx' Microsoft Excel mein open hai. Please close the excel file and try again.")
         return False
 
 if "running_master_df" not in st.session_state:
@@ -484,11 +484,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.date
         display_df = display_df.sort_values(by="Date").reset_index(drop=True)
     else: display_df = pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"])
-    def apply_color_highlights(df_matrix):
-        styled = df_matrix.style.background_gradient(cmap='Greens', subset=['Imprest Received (₹)']) \
-                                .background_gradient(cmap='Reds', subset=['Amount Spent (₹)'])
-        return styled
-
     edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
     if not edited_df.equals(display_df):
         updated_master = st.session_state.running_master_df.copy()
@@ -504,7 +499,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
             if pd.isna(row_data["Date"]) or row_data["Date"] is None: row_data["Date"] = datetime.date.today()
             else: row_data["Date"] = pd.to_datetime(row_data["Date"]).date()
 
-            # --- SCREENSHOT CRITICAL DICTIONARY LOGIC FIX ---
             clean_row = {
                 "Date": row_data["Date"], 
                 "Name": row_data["Name"], 
@@ -529,6 +523,14 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
     if not filtered_df.empty:
         summary_cat_df = filtered_df.groupby("Expense Category").agg({"Imprest Received (₹)": "sum", "Amount Spent (₹)": "sum"}).reset_index()
         summary_cat_df = summary_cat_df.sort_values(by="Amount Spent (₹)", ascending=False).reset_index(drop=True)
+        
+        # --- FIXED STYLER: Strict mapping bypass index definition to remove arrow engine failures ---
+        def apply_color_highlights(df_matrix):
+            df_cleaned = df_matrix.copy().reset_index(drop=True)
+            styled = df_cleaned.style.background_gradient(cmap='Greens', subset=['Imprest Received (₹)']) \
+                                    .background_gradient(cmap='Reds', subset=['Amount Spent (₹)'])
+            return styled
+
         st.dataframe(apply_color_highlights(summary_cat_df), use_container_width=True)
         
         total_inflow_calc = float(summary_cat_df["Imprest Received (₹)"].sum())
