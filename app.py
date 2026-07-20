@@ -484,7 +484,7 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.date
         display_df = display_df.sort_values(by="Date").reset_index(drop=True)
     else: display_df = pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"])
-    edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
+       edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
     if not edited_df.equals(display_df):
         updated_master = st.session_state.running_master_df.copy()
         if not updated_master.empty: updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
@@ -524,8 +524,19 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         summary_cat_df = filtered_df.groupby("Expense Category").agg({"Imprest Received (₹)": "sum", "Amount Spent (₹)": "sum"}).reset_index()
         summary_cat_df = summary_cat_df.sort_values(by="Amount Spent (₹)", ascending=False).reset_index(drop=True)
         
-        # --- FIXED STYLER BYPASS ENGINE: Removes Arrow/Proto format failures on cloud servers ---
-        st.dataframe(summary_cat_df, use_container_width=True)
+        # --- NEW SAFE STYLER ENGINE: Strict numeric formatting with typecast matrix mapping ---
+        summary_cat_df["Imprest Received (₹)"] = summary_cat_df["Imprest Received (₹)"].astype(float)
+        summary_cat_df["Amount Spent (₹)"] = summary_cat_df["Amount Spent (₹)"].astype(float)
+
+        def apply_cloud_safe_highlights(df_matrix):
+            df_cleaned = df_matrix.copy().reset_index(drop=True)
+            styled = df_cleaned.style.background_gradient(cmap='Greens', subset=['Imprest Received (₹)']) \
+                                    .background_gradient(cmap='Reds', subset=['Amount Spent (₹)']) \
+                                    .format({"Imprest Received (₹)": "₹{:,.2f}", "Amount Spent (₹)": "₹{:,.2f}"})
+            return styled
+
+        # Rendering colorful table
+        st.dataframe(apply_cloud_safe_highlights(summary_cat_df), use_container_width=True)
         
         total_inflow_calc = float(summary_cat_df["Imprest Received (₹)"].sum())
         total_outflow_calc = float(summary_cat_df["Amount Spent (₹)"].sum())
