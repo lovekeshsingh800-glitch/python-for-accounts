@@ -378,8 +378,7 @@ elif st.session_state.current_page == "🛠️ Database Backups":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="browser_backup_trigger"
             )
-        else: st.error("System error: Core database file path missing on server environment.")
-# ----------------- MODULE: THE COMPREHENSIVE FINANCIAL OVERVIEW -----------------
+       # ----------------- MODULE: THE COMPREHENSIVE FINANCIAL OVERVIEW -----------------
 elif st.session_state.current_page == "📊 Dashboard Overview":
     st.session_state.disp_names_str = ", ".join(st.session_state.active_names) if st.session_state.active_names else "All Users"
     st.session_state.disp_years_str = ", ".join(st.session_state.active_years) if st.session_state.active_years else "All Years"
@@ -484,7 +483,7 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.date
         display_df = display_df.sort_values(by="Date").reset_index(drop=True)
     else: display_df = pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"])
-       edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
+    edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
     if not edited_df.equals(display_df):
         updated_master = st.session_state.running_master_df.copy()
         if not updated_master.empty: updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
@@ -524,7 +523,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         summary_cat_df = filtered_df.groupby("Expense Category").agg({"Imprest Received (₹)": "sum", "Amount Spent (₹)": "sum"}).reset_index()
         summary_cat_df = summary_cat_df.sort_values(by="Amount Spent (₹)", ascending=False).reset_index(drop=True)
         
-        # --- NEW SAFE STYLER ENGINE: Strict numeric formatting with typecast matrix mapping ---
         summary_cat_df["Imprest Received (₹)"] = summary_cat_df["Imprest Received (₹)"].astype(float)
         summary_cat_df["Amount Spent (₹)"] = summary_cat_df["Amount Spent (₹)"].astype(float)
 
@@ -535,7 +533,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
                                     .format({"Imprest Received (₹)": "₹{:,.2f}", "Amount Spent (₹)": "₹{:,.2f}"})
             return styled
 
-        # Rendering colorful table
         st.dataframe(apply_cloud_safe_highlights(summary_cat_df), use_container_width=True)
         
         total_inflow_calc = float(summary_cat_df["Imprest Received (₹)"].sum())
