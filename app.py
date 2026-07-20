@@ -617,3 +617,31 @@ if 'selected_tab' in locals() and "Monthly" in str(selected_tab):
         
     else:
         st.info("⚠️ Filter criteria ke hisaab se abhi koi data available nahi hai.")
+# --- FORCE INJECT MONTHLY INSIGHTS TO MENU ---
+if 'selected_menu' in locals():
+    # Agar option menu select ho chuka hai, par option kam hain
+    st.sidebar.markdown("---")
+    st.sidebar.info("💡 **Monthly Expense Dekhne Ke Liye:** Jab aap PC par jayenge, toh code mein `options=[...]` wali list mein `'Monthly Insights'` add kar dijiyega. Tab tak aap direct neeche button daba kar ise dekh sakte hain:")
+    
+    # Phone par temporary bypass button
+    if st.sidebar.button("📅 Open Monthly Insights Page", use_container_width=True):
+        st.session_state.current_page = "📅 Monthly Insights"
+        st.rerun()
+
+# --- IF BUTTON CLICKED, SHOW THE MONTHLY INSIGHTS ---
+if st.session_state.get("current_page") == "📅 Monthly Insights":
+    st.title("📅 Monthly Expense Insights")
+    st.markdown("---")
+    
+    if 'filtered_df' in locals() and not filtered_df.empty:
+        monthly_df = filtered_df.copy()
+        monthly_df['Month-Year'] = pd.to_datetime(monthly_df['Date']).dt.strftime('%B %Y')
+        monthly_summary = monthly_df.groupby('Month-Year')['Amount Spent (₹)'].sum().reset_index()
+        
+        st.subheader("💳 Month-Wise Summary")
+        cols = st.columns(len(monthly_summary) if len(monthly_summary) > 0 else 1)
+        for idx, row in monthly_summary.iterrows():
+            with cols[idx % len(cols)]:
+                st.metric(label=f"Total Spent ({row['Month-Year']})", value=f"₹{row['Amount Spent (₹)']:,.2f}")
+    else:
+        st.info("⚠️ Filter criteria ke hisaab se abhi koi data available nahi hai.")
