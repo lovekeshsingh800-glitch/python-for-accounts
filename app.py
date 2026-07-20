@@ -564,3 +564,17 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
             st.plotly_chart(fig2, use_container_width=True)
 st.sidebar.markdown("---")
 st.sidebar.markdown("<div style='text-align: center; color: #a0aec0; font-size: 13px; font-weight: bold;'>✨ Created by Lovekesh</div>", unsafe_allow_html=True)
+# --- GRAPH OVERWRITE ENGINE ---
+if 'fig1' in locals():
+    fig1.update_traces(
+        line=dict(color='#ffaa00', width=3.5, shape='spline'), 
+        marker=dict(color='#ffffff', size=7, line=dict(color='#ffaa00', width=2)), 
+        fill='tozeroy', 
+        fillcolor='rgba(255, 170, 0, 0.08)'
+    )
+    fig1.update_layout(
+        plot_bgcolor='rgba(20, 23, 34, 0.5)', 
+        paper_bgcolor='rgba(0,0,0,0)', 
+        xaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)'), 
+        yaxis=dict(gridcolor='rgba(255, 255, 255, 0.05)', tickprefix="₹")
+    )
