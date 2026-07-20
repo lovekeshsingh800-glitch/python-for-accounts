@@ -206,7 +206,7 @@ with st.sidebar:
     )
     
     st.session_state.current_page = f"{'📊 ' if selected_menu == 'Dashboard Overview' else '📝 ' if selected_menu == 'Transaction Entries' else '⚙️ ' if selected_menu == 'Master Configurations' else '📥 ' if selected_menu == 'Bulk File Imports' else '🛠️ '}{selected_menu}"
-    st.markdown("<h3>🔍 Scope Filter Criteria</h3>", unsafe_allow_html=True)
+    st.markdown("### 🔍 Scope Filter Criteria</h3>", unsafe_allow_html=True)
     df_filter_core = st.session_state.running_master_df.copy()
     if not df_filter_core.empty:
         df_filter_core["Date"] = pd.to_datetime(df_filter_core["Date"])
@@ -524,14 +524,8 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         summary_cat_df = filtered_df.groupby("Expense Category").agg({"Imprest Received (₹)": "sum", "Amount Spent (₹)": "sum"}).reset_index()
         summary_cat_df = summary_cat_df.sort_values(by="Amount Spent (₹)", ascending=False).reset_index(drop=True)
         
-        # --- FIXED STYLER: Strict mapping bypass index definition to remove arrow engine failures ---
-        def apply_color_highlights(df_matrix):
-            df_cleaned = df_matrix.copy().reset_index(drop=True)
-            styled = df_cleaned.style.background_gradient(cmap='Greens', subset=['Imprest Received (₹)']) \
-                                    .background_gradient(cmap='Reds', subset=['Amount Spent (₹)'])
-            return styled
-
-        st.dataframe(apply_color_highlights(summary_cat_df), use_container_width=True)
+        # --- FIXED STYLER BYPASS ENGINE: Removes Arrow/Proto format failures on cloud servers ---
+        st.dataframe(summary_cat_df, use_container_width=True)
         
         total_inflow_calc = float(summary_cat_df["Imprest Received (₹)"].sum())
         total_outflow_calc = float(summary_cat_df["Amount Spent (₹)"].sum())
