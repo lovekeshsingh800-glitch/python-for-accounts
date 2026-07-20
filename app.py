@@ -378,13 +378,14 @@ elif st.session_state.current_page == "🛠️ Database Backups":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="browser_backup_trigger"
             )
-       # ----------------- MODULE: THE COMPREHENSIVE FINANCIAL OVERVIEW -----------------
+        else: st.error("System error: Core database file path missing on server environment.")
+# ----------------- MODULE: THE COMPREHENSIVE FINANCIAL OVERVIEW -----------------
 elif st.session_state.current_page == "📊 Dashboard Overview":
     st.session_state.disp_names_str = ", ".join(st.session_state.active_names) if st.session_state.active_names else "All Users"
     st.session_state.disp_years_str = ", ".join(st.session_state.active_years) if st.session_state.active_years else "All Years"
     st.session_state.disp_months_str = ", ".join(st.session_state.active_months) if st.session_state.active_months else "All Months"
 
-    st.subheader(f"User Summary Overview (Timeline Scope: {st.session_state.disp_years_str} - {st.session_state.disp_months_str})")
+    st.subheader(f"User Summary Overview (Timeline Scope: {st.session_state.disp_names_str} - {st.session_state.disp_months_str})")
     calc_df_master = st.session_state.running_master_df.copy()
     if not calc_df_master.empty:
         calc_df_master["Date"] = pd.to_datetime(calc_df_master["Date"])
@@ -523,17 +524,8 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         summary_cat_df = filtered_df.groupby("Expense Category").agg({"Imprest Received (₹)": "sum", "Amount Spent (₹)": "sum"}).reset_index()
         summary_cat_df = summary_cat_df.sort_values(by="Amount Spent (₹)", ascending=False).reset_index(drop=True)
         
-        summary_cat_df["Imprest Received (₹)"] = summary_cat_df["Imprest Received (₹)"].astype(float)
-        summary_cat_df["Amount Spent (₹)"] = summary_cat_df["Amount Spent (₹)"].astype(float)
-
-        def apply_cloud_safe_highlights(df_matrix):
-            df_cleaned = df_matrix.copy().reset_index(drop=True)
-            styled = df_cleaned.style.background_gradient(cmap='Greens', subset=['Imprest Received (₹)']) \
-                                    .background_gradient(cmap='Reds', subset=['Amount Spent (₹)']) \
-                                    .format({"Imprest Received (₹)": "₹{:,.2f}", "Amount Spent (₹)": "₹{:,.2f}"})
-            return styled
-
-        st.dataframe(apply_cloud_safe_highlights(summary_cat_df), use_container_width=True)
+        # --- NO MORE CRASHES: Render clean native dataframe configuration ---
+        st.dataframe(summary_cat_df, use_container_width=True)
         
         total_inflow_calc = float(summary_cat_df["Imprest Received (₹)"].sum())
         total_outflow_calc = float(summary_cat_df["Amount Spent (₹)"].sum())
