@@ -379,7 +379,7 @@ elif st.session_state.current_page == "🛠️ Database Backups":
                 key="browser_backup_trigger"
             )
         else: st.error("System error: Core database file path missing on server environment.")
-# ----------------- MODULE: THE COMPREHENSIVE FINANCIAL OVERVIEW -----------------
+
 # ----------------- MODULE: THE COMPREHENSIVE FINANCIAL OVERVIEW -----------------
 elif st.session_state.current_page == "📊 Dashboard Overview":
     st.session_state.disp_names_str = ", ".join(st.session_state.active_names) if st.session_state.active_names else "All Users"
