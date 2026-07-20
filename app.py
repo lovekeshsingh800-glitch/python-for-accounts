@@ -484,7 +484,7 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.date
         display_df = display_df.sort_values(by="Date").reset_index(drop=True)
     else: display_df = pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"])
-    edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
+        edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
     if not edited_df.equals(display_df):
         updated_master = st.session_state.running_master_df.copy()
         if not updated_master.empty: updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
@@ -524,8 +524,35 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         summary_cat_df = filtered_df.groupby("Expense Category").agg({"Imprest Received (₹)": "sum", "Amount Spent (₹)": "sum"}).reset_index()
         summary_cat_df = summary_cat_df.sort_values(by="Amount Spent (₹)", ascending=False).reset_index(drop=True)
         
-        # --- NO MORE CRASHES: Render clean native dataframe configuration ---
-        st.dataframe(summary_cat_df, use_container_width=True)
+        # Finding limits for dynamic color scaling bars
+        max_inflow = float(summary_cat_df["Imprest Received (₹)"].max()) if not summary_cat_df.empty else 1.0
+        max_outflow = float(summary_cat_df["Amount Spent (₹)"].max()) if not summary_cat_df.empty else 1.0
+        if max_inflow <= 0: max_inflow = 1.0
+        if max_outflow <= 0: max_outflow = 1.0
+
+        # --- NATIVE DYNAMIC COLOR CONFIGURATION (100% CLOUD SAFE) ---
+        colorful_config = {
+            "Expense Category": st.column_config.TextColumn("Expense Category", width="medium"),
+            "Imprest Received (₹)": st.column_config.ProgressColumn(
+                "Imprest Received (₹)",
+                help="Total funds allocated inside this category scope",
+                format="₹%d",
+                min_value=0,
+                max_value=int(max_inflow),
+                color="green"
+            ),
+            "Amount Spent (₹)": st.column_config.ProgressColumn(
+                "Amount Spent (₹)",
+                help="Total expenses booked inside this ledger component",
+                format="₹%d",
+                min_value=0,
+                max_value=int(max_outflow),
+                color="red"
+            )
+        }
+
+        # Rendering highly dense colorful interface
+        st.dataframe(summary_cat_df, column_config=colorful_config, use_container_width=True, hide_index=True)
         
         total_inflow_calc = float(summary_cat_df["Imprest Received (₹)"].sum())
         total_outflow_calc = float(summary_cat_df["Amount Spent (₹)"].sum())
