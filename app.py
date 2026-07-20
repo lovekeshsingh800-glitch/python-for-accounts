@@ -379,14 +379,13 @@ elif st.session_state.current_page == "🛠️ Database Backups":
                 key="browser_backup_trigger"
             )
         else: st.error("System error: Core database file path missing on server environment.")
-
 # ----------------- MODULE: THE COMPREHENSIVE FINANCIAL OVERVIEW -----------------
 elif st.session_state.current_page == "📊 Dashboard Overview":
     st.session_state.disp_names_str = ", ".join(st.session_state.active_names) if st.session_state.active_names else "All Users"
     st.session_state.disp_years_str = ", ".join(st.session_state.active_years) if st.session_state.active_years else "All Years"
     st.session_state.disp_months_str = ", ".join(st.session_state.active_months) if st.session_state.active_months else "All Months"
 
-    st.subheader(f"User Summary Overview (Timeline Scope: {st.session_state.disp_years_str} - {st.session_state.disp_months_str})")
+    st.subheader(f"User Summary Overview (Timeline Scope: {st.session_state.disp_names_str} - {st.session_state.disp_months_str})")
     calc_df_master = st.session_state.running_master_df.copy()
     if not calc_df_master.empty:
         calc_df_master["Date"] = pd.to_datetime(calc_df_master["Date"])
@@ -470,7 +469,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         c_color = "#22c55e" if closing_balance >= 0 else "#ef4444"
         st.markdown(f"<div style='border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 6px;'>Scope Closing Balance<br><span style='color:{c_color}; font-size:24px; font-weight:bold;'>₹{closing_balance:,.2f}</span></div>", unsafe_allow_html=True)
     st.markdown("---")
-
     st.subheader("Auditable Transaction Log Statement")
     column_config = {
         "Date": st.column_config.DateColumn("Date", format="DD-MM-YYYY", required=True),
@@ -510,3 +508,73 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
                 "Amount Spent (₹)": float(row_data["Amount Spent (₹)"]) if pd.notna(row_data["Amount Spent (₹)"]) else 0.0
             }
             if pd.notna(source_id) and int(source_id) in updated_master.index:
+                for col in clean_row: 
+                    updated_master.at[int(source_id), col] = clean_row[col]
+            else:
+                if pd.notna(clean_row["Name"]) and pd.notna(clean_row["Expense Category"]): 
+                    updated_master = pd.concat([updated_master, pd.DataFrame([clean_row])], ignore_index=True)
+
+        if not updated_master.empty:
+            updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
+            updated_master = updated_master.sort_values(by="Date").reset_index(drop=True)
+        if save_data_to_excel_live(updated_master):
+            st.session_state.running_master_df = load_data_from_excel_live()
+            st.rerun()
+    st.markdown("---")
+    st.subheader("📋 Expense Category Ledger Metrics Summary")
+    if not filtered_df.empty:
+        summary_cat_df = filtered_df.groupby("Expense Category").agg({"Imprest Received (₹)": "sum", "Amount Spent (₹)": "sum"}).reset_index()
+        summary_cat_df = summary_cat_df.sort_values(by="Amount Spent (₹)", ascending=False).reset_index(drop=True)
+        
+        max_inflow = float(summary_cat_df["Imprest Received (₹)"].max()) if not summary_cat_df.empty else 1.0
+        max_outflow = float(summary_cat_df["Amount Spent (₹)"].max()) if not summary_cat_df.empty else 1.0
+        if max_inflow <= 0: max_inflow = 1.0
+        if max_outflow <= 0: max_outflow = 1.0
+
+        colorful_config = {
+            "Expense Category": st.column_config.TextColumn("Expense Category", width="medium"),
+            "Imprest Received (₹)": st.column_config.ProgressColumn(
+                "Imprest Received (₹)", help="Total funds allocated", format="₹%d", min_value=0, max_value=int(max_inflow), color="green"
+            ),
+            "Amount Spent (₹)": st.column_config.ProgressColumn(
+                "Amount Spent (₹)", help="Total expenses booked", format="₹%d", min_value=0, max_value=int(max_outflow), color="red"
+            )
+        }
+
+        st.dataframe(summary_cat_df, column_config=colorful_config, use_container_width=True, hide_index=True)
+        
+        total_inflow_calc = float(summary_cat_df["Imprest Received (₹)"].sum())
+        total_outflow_calc = float(summary_cat_df["Amount Spent (₹)"].sum())
+        
+        col_t1, col_t2 = st.columns(2)
+        with col_t1: st.markdown(f"<div style='border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; background-color: rgba(34,197,94,0.02);'>📊 Scope Category Total Inflow<br><span style='color:#22c55e; font-size:22px; font-weight:bold;'>₹{total_inflow_calc:,.2f}</span></div>", unsafe_allow_html=True)
+        with col_t2: st.markdown(f"<div style='border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; background-color: rgba(239,68,68,0.02);'>📉 Scope Category Total Outflow<br><span style='color:#ef4444; font-size:22px; font-weight:bold;'>₹{total_outflow_calc:,.2f}</span></div>", unsafe_allow_html=True)
+        
+        export_buffer = io.BytesIO()
+        with pd.ExcelWriter(export_buffer, engine='openpyxl') as report_writer:
+            summary_cat_df.to_excel(report_writer, index=False, sheet_name="Category_Summaries")
+        export_buffer.seek(0)
+        
+        st.write("")
+        st.download_button(
+            label="📥 Download Sorted Ledger Report (Excel)",
+            data=export_buffer,
+            file_name="Sorted_Ledger_Report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        
+        st.markdown("---")
+        g_col1, g_col2 = st.columns(2)
+        with g_col1:
+            fig1 = go.Figure()
+            daily_spent = filtered_df.groupby(filtered_df["Date"].dt.date)["Amount Spent (₹)"].sum().reset_index()
+            fig1.add_trace(go.Scatter(x=daily_spent["Date"], y=daily_spent["Amount Spent (₹)"], fill='tozeroy', mode='lines+markers', line=dict(color='#ff9900'), fillcolor='rgba(255,153,0,0.1)'))
+            fig1.update_layout(title="✨ Daily Expense Flow Trend", plot_bgcolor='#0a0c10', paper_bgcolor='#0a0c10', font=dict(color='#e0e6ed'))
+            st.plotly_chart(fig1, use_container_width=True)
+        with g_col2:
+            fig2 = go.Figure()
+            user_funds = filtered_df.groupby("Name")[["Imprest Received (₹)", "Amount Spent (₹)"]].sum().reset_index()
+            fig2.add_trace(go.Bar(x=user_funds["Name"], y=user_funds["Imprest Received (₹)"], name="Inflow (Allocated)", marker_color='#22c55e'))
+            fig2.add_trace(go.Bar(x=user_funds["Name"], y=-user_funds["Amount Spent (₹)"], name="Outflow (Expenses)", marker_color='#ef4444'))
+            fig2.update_layout(title="⚡ User Structural Inflow vs Outflow Matrix", barmode='relative', plot_bgcolor='#0a0c10', paper_bgcolor='#0a0c10', font=dict(color='#e0e6ed'))
+            st.plotly_chart(fig2, use_container_width=True)
