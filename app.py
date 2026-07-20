@@ -385,7 +385,7 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
     st.session_state.disp_years_str = ", ".join(st.session_state.active_years) if st.session_state.active_years else "All Years"
     st.session_state.disp_months_str = ", ".join(st.session_state.active_months) if st.session_state.active_months else "All Months"
 
-    st.subheader(f"User Summary Overview (Timeline Scope: {st.session_state.disp_names_str} - {st.session_state.disp_months_str})")
+    st.subheader(f"User Summary Overview (Timeline Scope: {st.session_state.disp_years_str} - {st.session_state.disp_months_str})")
     calc_df_master = st.session_state.running_master_df.copy()
     if not calc_df_master.empty:
         calc_df_master["Date"] = pd.to_datetime(calc_df_master["Date"])
@@ -469,6 +469,7 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         c_color = "#22c55e" if closing_balance >= 0 else "#ef4444"
         st.markdown(f"<div style='border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 6px;'>Scope Closing Balance<br><span style='color:{c_color}; font-size:24px; font-weight:bold;'>₹{closing_balance:,.2f}</span></div>", unsafe_allow_html=True)
     st.markdown("---")
+
     st.subheader("Auditable Transaction Log Statement")
     column_config = {
         "Date": st.column_config.DateColumn("Date", format="DD-MM-YYYY", required=True),
@@ -483,7 +484,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.date
         display_df = display_df.sort_values(by="Date").reset_index(drop=True)
     else: display_df = pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"])
-
     edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
     if not edited_df.equals(display_df):
         updated_master = st.session_state.running_master_df.copy()
@@ -508,40 +508,24 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
                 "Amount Spent (₹)": float(row_data["Amount Spent (₹)"]) if pd.notna(row_data["Amount Spent (₹)"]) else 0.0
             }
             if pd.notna(source_id) and int(source_id) in updated_master.index:
-                for col in clean_row: 
-                    updated_master.at[int(source_id), col] = clean_row[col]
+                for col in clean_row: updated_master.at[int(source_id), col] = clean_row[col]
             else:
-                if pd.notna(clean_row["Name"]) and pd.notna(clean_row["Expense Category"]): 
-                    updated_master = pd.concat([updated_master, pd.DataFrame([clean_row])], ignore_index=True)
-
+                if pd.notna(clean_row["Name"]) and pd.notna(clean_row["Expense Category"]): updated_master = pd.concat([updated_master, pd.DataFrame([clean_row])], ignore_index=True)
         if not updated_master.empty:
             updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
             updated_master = updated_master.sort_values(by="Date").reset_index(drop=True)
         if save_data_to_excel_live(updated_master):
             st.session_state.running_master_df = load_data_from_excel_live()
             st.rerun()
+
     st.markdown("---")
     st.subheader("📋 Expense Category Ledger Metrics Summary")
     if not filtered_df.empty:
         summary_cat_df = filtered_df.groupby("Expense Category").agg({"Imprest Received (₹)": "sum", "Amount Spent (₹)": "sum"}).reset_index()
         summary_cat_df = summary_cat_df.sort_values(by="Amount Spent (₹)", ascending=False).reset_index(drop=True)
         
-        max_inflow = float(summary_cat_df["Imprest Received (₹)"].max()) if not summary_cat_df.empty else 1.0
-        max_outflow = float(summary_cat_df["Amount Spent (₹)"].max()) if not summary_cat_df.empty else 1.0
-        if max_inflow <= 0: max_inflow = 1.0
-        if max_outflow <= 0: max_outflow = 1.0
-
-        colorful_config = {
-            "Expense Category": st.column_config.TextColumn("Expense Category", width="medium"),
-            "Imprest Received (₹)": st.column_config.ProgressColumn(
-                "Imprest Received (₹)", help="Total funds allocated", format="₹%d", min_value=0, max_value=int(max_inflow), color="green"
-            ),
-            "Amount Spent (₹)": st.column_config.ProgressColumn(
-                "Amount Spent (₹)", help="Total expenses booked", format="₹%d", min_value=0, max_value=int(max_outflow), color="red"
-            )
-        }
-
-        st.dataframe(summary_cat_df, column_config=colorful_config, use_container_width=True, hide_index=True)
+        # --- FIXED STYLER BYPASS ENGINE: Removes Arrow/Proto format failures on cloud servers ---
+        st.dataframe(summary_cat_df, use_container_width=True)
         
         total_inflow_calc = float(summary_cat_df["Imprest Received (₹)"].sum())
         total_outflow_calc = float(summary_cat_df["Amount Spent (₹)"].sum())
