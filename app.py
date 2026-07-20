@@ -562,3 +562,5 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
             fig2.add_trace(go.Bar(x=user_funds["Name"], y=-user_funds["Amount Spent (₹)"], name="Outflow (Expenses)", marker_color='#ef4444'))
             fig2.update_layout(title="⚡ User Structural Inflow vs Outflow Matrix", barmode='relative', plot_bgcolor='#0a0c10', paper_bgcolor='#0a0c10', font=dict(color='#e0e6ed'))
             st.plotly_chart(fig2, use_container_width=True)
+st.sidebar.markdown("---")
+st.sidebar.markdown("<div style='text-align: center; color: #a0aec0; font-size: 13px; font-weight: bold;'>✨ Created by Lovekesh</div>", unsafe_allow_html=True)
