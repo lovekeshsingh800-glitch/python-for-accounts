@@ -1,3 +1,7 @@
 pandas
 openpyxl
 plotly
+pandas
+openpyxl
+streamlit-option-menu
+
