@@ -1,79 +1,38 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection  # Sahi tarika
 import pandas as pd
 import datetime
 import io
 import plotly.graph_objects as go
 from streamlit_option_menu import option_menu
 
-# Premium Page Title Config
 st.set_page_config(page_title="Imprest Management System", layout="wide")
 
 # --- STRICT DYNAMIC TARGET OVERWRITE ENGINE (COLORFUL SIDEBAR & MENUS) ---
 st.markdown("""
 <style>
-    /* Side panel background aur heading controls */
-    div[data-testid="stSidebar"] {
-        background-color: #141722 !important;
-    }
-    div[data-testid="stSidebar"] h2 {
-        color: #ffffff !important;
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        font-weight: 600;
-        margin-bottom: 5px;
-    }
-    /* Scope filters block headers colorful transformation */
-    div[data-testid="stSidebar"] h3 {
-        color: #38bdf8 !important;
-        font-size: 16px !important;
-        margin-top: 25px !important;
-        font-weight: bold !important;
-    }
-    /* Scope selector apply button style modification */
-    div[data-testid="stSidebar"] div.stButton button {
-        background-color: rgba(56, 189, 248, 0.08) !important;
-        border: 1px solid #38bdf8 !important;
-        color: #38bdf8 !important;
-        text-align: center !important;
-        justify-content: center !important;
-        width: 100% !important;
-        border-radius: 6px !important;
-    }
-    div[data-testid="stSidebar"] div.stButton button:hover {
-        background-color: #38bdf8 !important;
-        color: #000000 !important;
-    }
-    /* Orange Theme Download & Backup Buttons CSS */
-    div.stDownloadButton button {
-        background-color: rgba(255, 170, 0, 0.1) !important;
-        border: 1px solid #ffaa00 !important;
-        color: #ffaa00 !important;
-        font-weight: bold !important;
-        width: 100% !important;
-        border-radius: 6px !important;
-        padding: 10px !important;
-    }
-    div.stDownloadButton button:hover {
-        background-color: #ffaa00 !important;
-        color: #000000 !important;
-    }
-    /* Clean Divider Line */
-    hr {
-        margin-top: 5px !important;
-        margin-bottom: 15px !important;
-        border-color: rgba(255, 255, 255, 0.1) !important;
-    }
+    div[data-testid="stSidebar"] { background-color: #141722 !important; }
+    div[data-testid="stSidebar"] h2 { color: #ffffff !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 600; margin-bottom: 5px; }
+    div[data-testid="stSidebar"] h3 { color: #38bdf8 !important; font-size: 16px !important; margin-top: 25px !important; font-weight: bold !important; }
+    div[data-testid="stSidebar"] div.stButton button { background-color: rgba(56, 189, 248, 0.08) !important; border: 1px solid #38bdf8 !important; color: #38bdf8 !important; text-align: center !important; justify-content: center !important; width: 100% !important; border-radius: 6px !important; }
+    div[data-testid="stSidebar"] div.stButton button:hover { background-color: #38bdf8 !important; color: #000000 !important; }
+    div.stDownloadButton button { background-color: rgba(255, 170, 0, 0.1) !important; border: 1px solid #ffaa00 !important; color: #ffaa00 !important; font-weight: bold !important; width: 100% !important; border-radius: 6px !important; padding: 10px !important; }
+    div.stDownloadButton button:hover { background-color: #ffaa00 !important; color: #000000 !important; }
+    hr { margin-top: 5px !important; margin-bottom: 15px !important; border-color: rgba(255, 255, 255, 0.1) !important; }
 </style>
 """, unsafe_allow_html=True)
 
 if "current_page" not in st.session_state:
     st.session_state.current_page = "📊 Dashboard Overview"
 
-# Google Sheets Connection Pipeline
-conn = st.connection("gsheets", type=GSheetsConnection)
+# Live Google Sheets Direct Read/Write Framework Initialization (Fixed Security Context)
+try:
+    from streamlit_gsheets import GSheetsConnection
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except Exception:
+    from streamlit_gsheets_connection import GSheetsConnection
+    conn = st.connection("gsheets", type=GSheetsConnection)
 def load_data_from_sheets_live():
     default_cats = ["Office Supplies", "Local Travel", "Refreshments", "Internet Bill", "Repairs"]
-    
     try:
         df = conn.read(worksheet="Transactions")
         df["Date"] = pd.to_datetime(df["Date"]).dt.date
@@ -100,27 +59,16 @@ def load_data_from_sheets_live():
     except Exception:
         saved_categories = default_cats
 
-    if "allowed_names" not in st.session_state:
-        st.session_state.allowed_names = sorted(list(set(saved_names)))
-    if "allowed_categories" not in st.session_state:
-        st.session_state.allowed_categories = sorted(list(set(saved_categories)))
-
-    if not df.empty:
-        df = df.sort_values(by="Date").reset_index(drop=True)
-        return df
+    if "allowed_names" not in st.session_state: st.session_state.allowed_names = sorted(list(set(saved_names)))
+    if "allowed_categories" not in st.session_state: st.session_state.allowed_categories = sorted(list(set(saved_categories)))
+    if not df.empty: return df.sort_values(by="Date").reset_index(drop=True)
     return pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)"])
 def save_data_to_sheets_live(df_to_write):
     df_copy = df_to_write.copy()
-    if "_source_index" in df_copy.columns:
-        df_copy = df_copy.drop(columns=["_source_index"])
-
+    if "_source_index" in df_copy.columns: df_copy = df_copy.drop(columns=["_source_index"])
     if not df_copy.empty:
         df_copy["Date"] = pd.to_datetime(df_copy["Date"]).dt.date
-        df_copy = df_copy.sort_values(by="Date").reset_index(drop=True)
-        df_copy["Date"] = df_copy["Date"].astype(str)
-        df_copy["Imprest Received (₹)"] = df_copy["Imprest Received (₹)"].astype(float)
-        df_copy["Amount Spent (₹)"] = df_copy["Amount Spent (₹)"].astype(float)
-
+        df_copy = df_copy.sort_values(by="Date").reset_index(drop=True).astype({"Date": str, "Imprest Received (₹)": float, "Amount Spent (₹)": float})
     try:
         conn.update(worksheet="Transactions", data=df_copy)
         conn.update(worksheet="Master_Names", data=pd.DataFrame({"Allowed_Names": st.session_state.allowed_names}))
@@ -131,26 +79,16 @@ def save_data_to_sheets_live(df_to_write):
         return False
 
 st.session_state.running_master_df = load_data_from_sheets_live()
-
 if "active_years" not in st.session_state: st.session_state.active_years = []
 if "active_months" not in st.session_state: st.session_state.active_months = []
 if "active_names" not in st.session_state: st.session_state.active_names = []
-
 with st.sidebar:
     st.markdown("<h2>🖥️ Main Menu</h2>", unsafe_allow_html=True)
     st.markdown("---")
-    
     selected_menu = option_menu(
-        menu_title=None,
-        options=["Dashboard Overview", "Transaction Entries", "Master Configurations", "Bulk File Imports", "Database Backups"],
-        icons=["bar-chart-fill", "pencil-square", "gear-fill", "cloud-arrow-up-fill", "shield-lock-fill"],
-        menu_icon=None, default_index=0,
-        styles={
-            "container": {"padding": "0px", "background-color": "transparent"},
-            "icon": {"color": "#e0e6ed", "font-size": "15px"}, 
-            "nav-link": { "font-size": "15px", "text-align": "left", "margin": "4px 0px", "color": "#a0aec0", "padding": "12px 16px", "background-color": "transparent" },
-            "nav-link-selected": { "background-color": "#ffaa00", "color": "#000000", "font-weight": "bold", "box-shadow": "0px 4px 10px rgba(255, 170, 0, 0.2)" }
-        }
+        menu_title=None, options=["Dashboard Overview", "Transaction Entries", "Master Configurations", "Bulk File Imports", "Database Backups"],
+        icons=["bar-chart-fill", "pencil-square", "gear-fill", "cloud-arrow-up-fill", "shield-lock-fill"], menu_icon=None, default_index=0,
+        styles={"container": {"padding": "0px", "background-color": "transparent"}, "icon": {"color": "#e0e6ed", "font-size": "15px"}, "nav-link": {"font-size": "15px", "text-align": "left", "margin": "4px 0px", "color": "#a0aec0", "padding": "12px 16px"}, "nav-link-selected": {"background-color": "#ffaa00", "color": "#000000", "font-weight": "bold"}}
     )
     st.session_state.current_page = f"{'📊 ' if selected_menu == 'Dashboard Overview' else '📝 ' if selected_menu == 'Transaction Entries' else '⚙️ ' if selected_menu == 'Master Configurations' else '📥 ' if selected_menu == 'Bulk File Imports' else '🛠️ '}{selected_menu}"
     st.markdown("### 🔍 Scope Filter Criteria</h3>", unsafe_allow_html=True)
@@ -162,11 +100,9 @@ with st.sidebar:
     else:
         all_years = [datetime.date.today().year]
         all_months = []
-
     selected_years = st.multiselect("Target Years:", options=[str(y) for y in all_years], default=st.session_state.active_years)
     selected_months = st.multiselect("Target Months:", options=all_months, default=st.session_state.active_months)
     selected_names = st.multiselect("Target Accounts:", options=st.session_state.allowed_names, default=st.session_state.active_names)
-
     if st.button("Apply Scope Selections", use_container_width=True):
         st.session_state.active_years = selected_years
         st.session_state.active_months = selected_months
@@ -185,7 +121,6 @@ if st.session_state.current_page == "📝 Transaction Entries":
         with col_input3:
             chosen_desc = st.text_input("Voucher Description:", value="Operational Expense", key="exp_insert_desc")
             raw_chosen_spent = st.number_input("Expense Amount (₹)", step=100.0, value=0.0, key="exp_insert_spent")
-
         if st.button("Submit Voucher to Google Sheet Database", use_container_width=True, key="exp_insert_btn"):
             new_entry = { "Date": chosen_date, "Name": chosen_name, "Imprest Received (₹)": float(raw_allocated_amt), "Expense Category": chosen_cat, "Description": chosen_desc, "Amount Spent (₹)": float(raw_chosen_spent) }
             updated_df_via_form = pd.concat([st.session_state.running_master_df, pd.DataFrame([new_entry])], ignore_index=True)
@@ -262,7 +197,6 @@ elif st.session_state.current_page == "📥 Bulk File Imports":
                         imported_df["Name"] = imported_df["Name"].astype(str).str.strip()
                         imported_df["Expense Category"] = imported_df["Expense Category"].astype(str).str.strip()
                         imported_df["Description"] = imported_df["Description"].fillna("").astype(str).str.strip()
-                        
                         if st.button("🚀 Process & Merge Import Entries", use_container_width=True):
                             current_db = st.session_state.running_master_df.copy()
                             current_db["Date"] = pd.to_datetime(current_db["Date"]).dt.date
@@ -288,7 +222,6 @@ elif st.session_state.current_page == "🛠️ Database Backups":
     st.header("🛠️ Secure Cloud Database Backups")
     with st.container(border=True):
         st.write("### 📥 Download Live Data Backup to Your PC")
-        st.write("Google Sheets ka live data safe offline Excel sheet configuration me convert karke backup download karein.")
         buffer_backup = io.BytesIO()
         with pd.ExcelWriter(buffer_backup, engine='openpyxl') as b_writer:
             st.session_state.running_master_df.to_excel(b_writer, sheet_name="Transactions", index=False)
@@ -296,21 +229,18 @@ elif st.session_state.current_page == "🛠️ Database Backups":
             pd.DataFrame({"Allowed_Categories": st.session_state.allowed_categories}).to_excel(b_writer, sheet_name="Master_Categories", index=False)
         buffer_backup.seek(0)
         current_timestamp = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-        st.download_button(label="💾 Download Database Backup to Personal PC", data=buffer_backup.getvalue(), file_name=f"imprest_sheets_backup_{current_timestamp}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="browser_backup_trigger")
+        st.download_button(label="💾 Download Database Backup to Personal PC", data=buffer_backup.getvalue(), file_name=f"imprest_sheets_backup_{current_timestamp}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 elif st.session_state.current_page == "📊 Dashboard Overview":
     st.session_state.disp_names_str = ", ".join(st.session_state.active_names) if st.session_state.active_names else "All Users"
     st.session_state.disp_years_str = ", ".join(st.session_state.active_years) if st.session_state.active_years else "All Years"
     st.session_state.disp_months_str = ", ".join(st.session_state.active_months) if st.session_state.active_months else "All Months"
-
-    st.subheader(f"User Summary Overview (Timeline Scope: {st.session_state.disp_years_str} - {st.session_state.disp_months_str})")
+    st.subheader(f"User Summary Overview ({st.session_state.disp_years_str} - {st.session_state.disp_months_str})")
     calc_df_master = st.session_state.running_master_df.copy()
     if not calc_df_master.empty:
         calc_df_master["Date"] = pd.to_datetime(calc_df_master["Date"])
         calc_df_master["Imprest Received (₹)"] = pd.to_numeric(calc_df_master["Imprest Received (₹)"]).fillna(0.0)
         calc_df_master["Amount Spent (₹)"] = pd.to_numeric(calc_df_master["Amount Spent (₹)"]).fillna(0.0)
-
     target_users_cards = st.session_state.active_names if st.session_state.active_names else st.session_state.allowed_names
-
     if target_users_cards and not calc_df_master.empty:
         cols_metrics = st.columns(len(target_users_cards))
         for i, name_user in enumerate(target_users_cards):
@@ -320,7 +250,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
                 scope_df = user_full_log.copy()
                 if st.session_state.active_years: scope_df = scope_df[scope_df["Date"].dt.year.astype(str).isin(st.session_state.active_years)]
                 if st.session_state.active_months: scope_df = scope_df[scope_df["Date"].dt.strftime("%B").isin(st.session_state.active_months)]
-
                 if not scope_df.empty and (st.session_state.active_years or st.session_state.active_months):
                     min_scope_date = scope_df["Date"].min()
                     historical_logs = user_full_log[user_full_log["Date"] < min_scope_date]
@@ -330,7 +259,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
                 else:
                     u_received_this_scope = float(user_full_log["Imprest Received (₹)"].sum())
                     u_spent_this_scope = float(user_full_log["Amount Spent (₹)"].sum())
-
                 u_final_closing = u_opening + u_received_this_scope - u_spent_this_scope
                 with st.container(border=True):
                     st.write(f"### User: {name_user}")
@@ -354,7 +282,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
     master_working_df["_source_index"] = master_working_df.index
     master_working_df["Imprest Received (₹)"] = pd.to_numeric(master_working_df["Imprest Received (₹)"]).fillna(0.0)
     master_working_df["Amount Spent (₹)"] = pd.to_numeric(master_working_df["Amount Spent (₹)"]).fillna(0.0)
-
     user_timeline = master_working_df.copy()
     if st.session_state.active_names: user_timeline = user_timeline[user_timeline["Name"].isin(st.session_state.active_names)]
     opening_balance, closing_balance, scope_received, scope_spent = 0.0, 0.0, 0.0, 0.0
@@ -363,7 +290,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         if st.session_state.active_names: filtered_df = filtered_df[filtered_df["Name"].isin(st.session_state.active_names)]
         if st.session_state.active_years: filtered_df = filtered_df[filtered_df["Date"].dt.year.astype(str).isin(st.session_state.active_years)]
         if st.session_state.active_months: filtered_df = filtered_df[filtered_df["Date"].dt.strftime("%B").isin(st.session_state.active_months)]
-
     if not filtered_df.empty and (st.session_state.active_years or st.session_state.active_months):
         min_scope_date = filtered_df["Date"].min()
         prev_records = user_timeline[user_timeline["Date"] < min_scope_date]
@@ -385,7 +311,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         c_color = "#22c55e" if closing_balance >= 0 else "#ef4444"
         st.markdown(f"<div style='border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 6px;'>Scope Closing Balance<br><span style='color:{c_color}; font-size:24px; font-weight:bold;'>₹{closing_balance:,.2f}</span></div>", unsafe_allow_html=True)
     st.markdown("---")
-
     st.subheader("Auditable Transaction Log Statement")
     column_config = {
         "Date": st.column_config.DateColumn("Date", format="DD-MM-YYYY", required=True),
@@ -402,7 +327,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
     else: display_df = pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"])
     
     edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
-    
     if not edited_df.equals(display_df):
         updated_master = st.session_state.running_master_df.copy()
         if not updated_master.empty: updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
@@ -416,7 +340,6 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
             source_id = row_data.get("_source_index")
             if pd.isna(row_data["Date"]) or row_data["Date"] is None: row_data["Date"] = datetime.date.today()
             else: row_data["Date"] = pd.to_datetime(row_data["Date"]).date()
-
             cleaned_row = {
                 "Date": row_data["Date"], "Name": row_data["Name"] if pd.notna(row_data["Name"]) else "mohan",
                 "Imprest Received (₹)": float(row_data["Imprest Received (₹)"]) if pd.notna(row_data["Imprest Received (₹)"]) else 0.0,
@@ -425,9 +348,8 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
             }
             if pd.isna(source_id) or source_id is None: updated_master = pd.concat([updated_master, pd.DataFrame([cleaned_row])], ignore_index=True)
             else: updated_master.iloc[int(source_id)] = cleaned_row
-
         if save_data_to_sheets_live(updated_master):
-            st.success("Database logs synced live with Google Sheets!")
+            st.session_state.running_master_df = load_data_from_sheets_live()
             st.rerun()
 
     st.markdown("---")
