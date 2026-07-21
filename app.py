@@ -70,7 +70,7 @@ if "current_page" not in st.session_state:
     st.session_state.current_page = "📊 Dashboard Overview"
 
 # Google Sheets Connection Pipeline
-conn = st.connection("gsheets", type=GSheetsConnection)
+conn = st.connection("gsheets", type=GSheetsConnection, connection_name="gsheets")
 def load_data_from_sheets_live():
     default_cats = ["Office Supplies", "Local Travel", "Refreshments", "Internet Bill", "Repairs"]
     
