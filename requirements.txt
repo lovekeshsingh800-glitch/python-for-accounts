@@ -10,4 +10,5 @@ st-gsheets-connection
 pandas
 plotly
 openpyxl
-
+selenium
+webdriver-manager
