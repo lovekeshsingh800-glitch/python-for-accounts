@@ -4,4 +4,10 @@ plotly
 pandas
 openpyxl
 streamlit-option-menu
+streamlit
+streamlit-option-menu
+st-gsheets-connection
+pandas
+plotly
+openpyxl
 
