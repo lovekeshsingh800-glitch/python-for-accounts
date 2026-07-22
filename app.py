@@ -5,36 +5,6 @@ import os
 import io
 import plotly.graph_objects as go
 from streamlit_option_menu import option_menu
-import streamlit as st
-
-def check_password():
-    """Returns True if the user had the correct password."""
-    def password_entered():
-        """Checks whether a password entered by the user is correct."""
-        if st.session_state["password"] == st.secrets["password"]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Password ko memory se remove karne ke liye
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        # First run, show input for password
-        st.text_input("Password enter karein", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        # Password galat hone par error dikhayein
-        st.text_input("Password enter karein", type="password", on_change=password_entered, key="password")
-        st.error("😕 Galat password. Kripya sahi password dalein.")
-        return False
-    else:
-        # Password sahi hai
-        return True
-
-if check_password():
-    # ---- AAPKA BANA HUA DASHBOARD CODE YAHA SE SHURU HOGA ----
-    st.title("Mera Secure Dashboard")
-    st.write("Welcome! Aapne sahi password dala hai.")
-    # (Aapka baki saara purana code is `if` block ke andar rahega)
 
 # Premium Page Title Config
 st.set_page_config(page_title="Imprest Management System", layout="wide")
