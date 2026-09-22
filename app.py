@@ -470,15 +470,16 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         st.markdown(f"<div style='border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 6px;'>Scope Closing Balance<br><span style='color:{c_color}; font-size:24px; font-weight:bold;'>₹{closing_balance:,.2f}</span></div>", unsafe_allow_html=True)
     st.markdown("---")
 
-       st.subheader("Auditable Transaction Log Statement")
-    column_config = {
-        "Date": st.column_config.DateColumn("Date", format="DD-MM-YYYY", required=True),
-        "Name": st.column_config.SelectboxColumn("Account Name", options=st.session_state.allowed_names, required=True),
-        "Imprest Received (₹)": st.column_config.NumberColumn("Imprest Received (₹)", format="₹%d", required=True),
-        "Expense Category": st.column_config.SelectboxColumn("Ledger Category", options=st.session_state.allowed_categories, required=True),
-        "Description": st.column_config.TextColumn("Voucher Description", required=False),
-        "Amount Spent (₹)": st.column_config.ProgressColumn("Amount Spent (₹)", format="₹%d", min_value=0, max_value=15000, required=True)
-    }
+   st.subheader("Auditable Transaction Log Statement")
+column_config = {
+"Date": st.column_config.DateColumn("Date", format="DD-MM-YYYY", required=True),
+"Name": st.column_config.SelectboxColumn("Account Name", options=st.session_state.allowed_names, required=True),
+"Imprest Received (₹)": st.column_config.NumberColumn("Imprest Received (₹)", format="₹%d", required=True),
+"Expense Category": st.column_config.SelectboxColumn("Ledger Category", options=st.session_state.allowed_categories, required=True),
+"Description": st.column_config.TextColumn("Voucher Description", required=False),
+"Amount Spent (₹)": st.column_config.ProgressColumn("Amount Spent (₹)", format="₹%d", min_value=0, max_value=15000, required=True)
+}
+
 
     if not filtered_df.empty:
         display_df = filtered_df[["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"]].copy()
