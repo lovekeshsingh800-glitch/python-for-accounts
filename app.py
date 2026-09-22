@@ -471,14 +471,16 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
     st.markdown("---")
 
     st.subheader("Auditable Transaction Log Statement")
-    column_config = {
+       column_config = {
         "Date": st.column_config.DateColumn("Date", format="DD-MM-YYYY", required=True),
         "Name": st.column_config.SelectboxColumn("Account Name", options=st.session_state.allowed_names, required=True),
         "Imprest Received (₹)": st.column_config.NumberColumn("Imprest Received (₹)", format="₹%d", required=True),
         "Expense Category": st.column_config.SelectboxColumn("Ledger Category", options=st.session_state.allowed_categories, required=True),
         "Description": st.column_config.TextColumn("Voucher Description", required=False),
-        "Amount Spent (₹)": st.column_config.NumberColumn("Amount Spent (₹)", format="₹%d", required=True),
+        # Neeche wala column colorful Progress Bar ban jayega (Max value 15000 rakhi hai, aap badal sakte hain)
+        "Amount Spent (₹)": st.column_config.ProgressColumn("Amount Spent (₹)", format="₹%d", min_value=0, max_value=15000, required=True)
     }
+
     if not filtered_df.empty:
         display_df = filtered_df[["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"]].copy()
         display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.date
