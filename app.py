@@ -477,8 +477,8 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         "Imprest Received (₹)": st.column_config.NumberColumn("Imprest Received (₹)", format="₹%d", required=True),
         "Expense Category": st.column_config.SelectboxColumn("Ledger Category", options=st.session_state.allowed_categories, required=True),
         "Description": st.column_config.TextColumn("Voucher Description", required=False),
-        "Amount Spent (₹)": st.column_config.ProgressColumn("Amount Spent (₹)", format="₹%d", min_value=0, max_value=15000, required=True)
-    }
+        "Amount Spent (₹)": st.column_config.ProgressColumn("Amount Spent (₹)", format="₹%d", min_value=0, max_value=15000)
+   }
 
     if not filtered_df.empty:
         display_df = filtered_df[["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"]].copy()
