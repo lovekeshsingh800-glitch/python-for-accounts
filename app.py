@@ -484,33 +484,14 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.date
         display_df = display_df.sort_values(by="Date").reset_index(drop=True)
     else: display_df = pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"])
-    # 1. Simple direct editor setup bina conflict waale key ke
-    edited_df = st.data_editor(
-        display_df, 
-        column_config=column_config, 
-        num_rows="dynamic", 
-        use_container_width=True
-    )
-
-    # 2. Deleted aur edited rows ko safe tarike se handle karein
-    if edited_df is not None and not edited_df.equals(display_df):
+    edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
+    if not edited_df.equals(display_df):
         updated_master = st.session_state.running_master_df.copy()
-        
-        if not updated_master.empty:
-            updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
-            
-        # Check karein agar display_df mein source index columns hain
-        if "_source_index" in display_df.columns:
-            original_source_ids = set(display_df["_source_index"].dropna().astype(int).tolist())
-            
-            # Agar edited_df mein source index hai, toh comparison karein
-            if "_source_index" in edited_df.columns:
-                current_source_ids = set(edited_df["_source_index"].dropna().astype(int).tolist())
-                deleted_ids = original_source_ids - current_source_ids
-                
-                if deleted_ids:
-                    updated_master = updated_master.drop(list(deleted_ids), errors='ignore').reset_index(drop=True)
-
+        if not updated_master.empty: updated_master["Date"] = pd.to_datetime(updated_master["Date"]).dt.date
+        original_source_ids = set(display_df["_source_index"].dropna().astype(int).tolist())
+        current_source_ids = set(edited_df["_source_index"].dropna().astype(int).tolist())
+        deleted_ids = original_source_ids - current_source_ids
+        if deleted_ids: updated_master = updated_master.drop(list(deleted_ids)).reset_index(drop=True)
 
 
         for idx in edited_df.index:
