@@ -484,6 +484,7 @@ elif st.session_state.current_page == "📊 Dashboard Overview":
         display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.date
         display_df = display_df.sort_values(by="Date").reset_index(drop=True)
     else: display_df = pd.DataFrame(columns=["Date", "Name", "Imprest Received (₹)", "Expense Category", "Description", "Amount Spent (₹)", "_source_index"])
+    display_df["Description"] = display_df["Description"].fillna("").astype(str)
     edited_df = st.data_editor(display_df, column_config=column_config, num_rows="dynamic", use_container_width=True, key="data_editor_widget")
     if not edited_df.equals(display_df):
         updated_master = st.session_state.running_master_df.copy()
